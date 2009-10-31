@@ -1,8 +1,9 @@
 <?php
 echo '<?xml version="1.0" encoding="UTF-8" ?>';
+$maplibId = (int)$_GET['id'];
 ?>
 <Module>
-  <ModulePrefs title="Hello Wave" height="500">
+  <ModulePrefs title="Fighty" height="500">
     <Require feature="wave-preview" /> 
     <Require feature="dynamic-height" />
   </ModulePrefs>
@@ -19,7 +20,7 @@ echo '<?xml version="1.0" encoding="UTF-8" ?>';
 
   <script type="text/javascript">
   
-  map = new Mmap(<?php echo $_GET['id']?>,document.getElementById("map"),null,null,7);
+  map = new Mmap(<?php echo $maplibId?>,document.getElementById("map"),null,null,7);
   map.initMap();
   gadgets.window.adjustHeight();
   
