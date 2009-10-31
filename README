@@ -1,0 +1,17 @@
+Fighty - a google wave battlemat gadget
+
+A running version is hosted at http://www.savevsgeek.com/fighty
+
+Fighty is a battlemap gadget for Google Wave, intended for using Wave for gaming.
+
+Here’s what it does:
+
+Takes a custom map from maplib.net
+Presents that in a wave
+Allows users to pan and zoom, synced with that gadget instance.
+Allows users to add, and move markers
+It’s still in developement, so it’s not quite complete for what I want, but here’s how to use it today.
+
+Setup an account at http://www.maplib.net, upload your map.
+Take the id for your map (e.g. http://www.maplib.net/map.php?id=xxx) where xxx is your map id
+Add the gadget to your wave: http://www.savevsgeek.com/fighty.php?id=xxx where xxx is your map id
