@@ -27,11 +27,11 @@ $maplibId = (int)$_GET['id'];
   </script>
   
   <script type="text/javascript">
-  	
-	GEvent.addListener(map.map, "moveend", handlePan);
-	GEvent.addListener(map.map, "zoomend", handleZoom);
-        cltMarkers={};
-		svrMarkers={};
+    GEvent.addListener(map.map, "moveend", handlePan);
+	  GEvent.addListener(map.map, "zoomend", handleZoom);
+    map.map.disableScrollWheelZoom();  	
+    var cltMarkers={};
+	  var svrMarkers={};
   
     function init() {
       if (wave && wave.isInWaveContainer()) {
@@ -65,38 +65,27 @@ $maplibId = (int)$_GET['id'];
           svrMarkers[keys[key]] = JSON.parse(wave.getState().get(keys[key]));  
 		    }
       }
-      // Clean up local markers
-      for (key in cltMarkers) {
-        var kStr = new String(key);
-        if (kStr.match('^mrkr_.*')) {
-          if (cltMarkers[key]) {
-            if (cltMarkers[key]['marker']) {
-		      cltMarkers[key]['marker'].remove();        
-		    }
-		    cltMarkers[key] = null;	
-          } 
-        } 
-      }
-
+    
       for (key in svrMarkers) {
         var kStr = new String(key);
         if (kStr.match('^mrkr_.*')) {
-          // Create local table if needed
+          // Create local markers, if needed
           if (!cltMarkers[key]) {
             cltMarkers[key] = svrMarkers[key];
             var mk_ctr = new GLatLng(svrMarkers[key].lat, svrMarkers[key].lng);
             var mk_opt = {};
             mk_opt['draggable'] = true;
-	        if (cltMarkers[key].label) {
+            if (cltMarkers[key].label) {
               mk_opt['title'] = cltMarkers[key].label;
-		    } else {
+            } else {
               mk_opt['title'] = key;
-		    }
+            }
             var marker = new GMarker(mk_ctr, mk_opt);
-		    marker['mkrIdx'] = key;
+            marker['mkrIdx'] = key;
             GEvent.addListener(marker,"dragend", moveMarker);
             GEvent.addListener(marker,"click", clickMarker);
-		    cltMarkers[key]['marker'] = marker;
+            GEvent.addListener(marker,"infowindowbeforeclose", preCloseMarker);
+            cltMarkers[key]['marker'] = marker;
             map.map.addOverlay(marker);
           }
           // Update changed markers 
@@ -104,31 +93,46 @@ $maplibId = (int)$_GET['id'];
           // Move markers that need moving
           if ((mkrState.lat != cltMarkers[key].lat) || (mkrState.lng != cltMarkers[key].lng)) {
             var newCenter = new GLatLng(wave.getState().get(key).lat, wave.getState().get(key).lng);
-		    cltMarkers[key].lat = mkrState.lat;
-		    cltMarkers[key].lng = mkrState.lng;
+            cltMarkers[key].lat = mkrState.lat;
+            cltMarkers[key].lng = mkrState.lng;
             cltMarkers[key].marker.setLatLng(newCenter);
           }
-          // Title markers that need a title
+          // Title markers that need a new title
 			 
-		  if (mkrState.label != cltMarkers[key].label) {
-		    cltMarkers[key].label = mkrState.label;
+          if (mkrState.label != cltMarkers[key].label) {
+            cltMarkers[key].label = mkrState.label;
             var mk_ctr = new GLatLng(mkrState.lat,mkrState.lng);
-		    var mk_opt = {};
-		    mk_opt['draggable'] = true;
-		    mk_opt['title'] = mkrState.label;
-		    var marker = new GMarker(mk_ctr,mk_opt);
-		    GEvent.addListener(marker,"dragent", moveMarker);
-		    GEvent.addListener(marker,"click", clickMarker);
-	        marker['mkrIdx'] = key;
-		    if(cltMarkers[key]['marker']) {
-		      cltMarkers[key]['marker'].remove();
-		      cltMarkers[key]['marker'] = null;
-		      cltMarkers[key]['marker'] = marker;
-		      map.map.addOverlay(marker);
-		    }
+            var mk_opt = {};
+            mk_opt['draggable'] = true;
+            mk_opt['title'] = mkrState.label;
+            var marker = new GMarker(mk_ctr,mk_opt);
+            GEvent.addListener(marker,"dragent", moveMarker);
+            GEvent.addListener(marker,"click", clickMarker);
+            marker['mkrIdx'] = key;
+            if(cltMarkers[key]['marker']) {
+              cltMarkers[key]['marker'].remove();
+              cltMarkers[key]['marker'] = null;
+              cltMarkers[key]['marker'] = marker;
+              map.map.addOverlay(marker);
+            }
           }
         }
       }
+      // Clean up local markers       
+      for (key in cltMarkers) {
+        var kStr = new String(key);
+        if (kStr.match('^mrkr_.*')) {
+          if (!svrMarkers[key]) {
+            if (cltMarkers[key]['marker']) {
+              cltMarkers[key]['marker'].closeInfoWindow();
+              cltMarkers[key]['marker'].remove();        
+              delete cltMarkers[key];
+
+            }
+          } 
+        } 
+      }
+
     }
 
 
@@ -147,27 +151,32 @@ $maplibId = (int)$_GET['id'];
 		
 	  function clickMarker() {
 	    map.map.closeInfoWindow();
-	    this.openInfoWindowHtml("Label: <input value='" + this.getTitle() +"' onBlur=setLabel('" + this['mkrIdx'] + "') id='ttl_"+this['mkrIdx']+"' type=text/> </br><a onClick=removeMarker('" + this['mkrIdx'] + "')>(x)</a>");
+	    this.openInfoWindowHtml("Label: <input value='" + this.getTitle() +"' id='ttl_"+this['mkrIdx']+"' type='text' /> </br><a onClick=removeMarker('" + this['mkrIdx'] + "')>(x)</a>");
 	  }
 
-    function setLabel(markerIndex) {		  
+    function setLabel(markerIdx, label) {		  
       //var mrkr_record = JSON.parse(wave.getState().get(markerIndex));
-	    var mrkr_record=cltMarkers[markerIndex];
-      var label = document.getElementById("ttl_"+mrkr_record.marker['mkrIdx']).value;
+	    //var mrkr_record=cltMarkers[markerIdx];
       var delta = {};
-      var new_mrkr_record = JSON.parse(wave.getState().get(markerIndex));
+      var new_mrkr_record = JSON.parse(wave.getState().get(markerIdx));
       new_mrkr_record['label'] = String(label);
-      delta[markerIndex] = JSON.stringify(new_mrkr_record);
+      delta[markerIdx] = JSON.stringify(new_mrkr_record);
       wave.getState().submitDelta(delta);
     }
 
     function removeMarker(markerIndex) {
-      delta = {};
+      map.map.closeInfoWindow();
+	    delta = {};
       delta[markerIndex] = null;
       wave.getState().submitDelta(delta);                 
     }
+    
+    function preCloseMarker() {
+      var label = document.getElementById("ttl_"+this['mkrIdx']).value;
+      setLabel(this['mkrIdx'], label);
+    }
 	
-	  function stateUpdated() {		  
+	  function stateUpdated(state) {		  
       setTimeout(syncZoom,0);
       setTimeout(syncPan,0);
       setTimeout(syncMarkers,0);
@@ -190,8 +199,7 @@ $maplibId = (int)$_GET['id'];
     function syncZoom() {
       var newZoom = JSON.parse(wave.getState().get('zoomlevel'));
       var oldZoom = map.map.getZoom();
-      if (oldZoom == newZoom) {
-      } else {
+      if (oldZoom != newZoom) {      
         map.map.setZoom(newZoom);
       }
     }
@@ -200,8 +208,7 @@ $maplibId = (int)$_GET['id'];
       var oCenter = map.map.getCenter();
       var newCenter = JSON.parse(wave.getState().get('mapcenter'));
       var gCenter = new GLatLng(newCenter[0],newCenter[1]);
-      if ((oCenter.lat() == gCenter.lat()) && (oCenter.lng() == gCenter.lng())) {
-      } else {
+      if (JSON.stringify(oCenter) == JSON.stringify(gCenter)) {
         map.map.setCenter(gCenter);
       }
     }
