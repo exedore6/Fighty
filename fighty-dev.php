@@ -11,8 +11,9 @@ $maplibId = (int)$_GET['id'];
     <![CDATA[
     
 	<div id="map" style="width: 600px; height: 500px"></div>
-	<button onClick="wave.getState().reset()">Reset</button>
+	<div id="buttons"> <button onClick="wave.getState().reset()">Reset</button>
 	<button onClick="addMarker()">Add Marker</button>
+  </div>
 
 	<script type="text/javascript" src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAJZSCiJrV2x8Q-D4AwKLeqBRtwJtrMVWsjag3-LZr98ArjG2fyhRp5a1A2MD7yqmvDZI_58K4k3Q3QA"></script>
   <script src="http://www.maplib.net/api/api?v=1.15"  type="text/javascript"></script>
@@ -36,9 +37,37 @@ $maplibId = (int)$_GET['id'];
     function init() {
       if (wave && wave.isInWaveContainer()) {
         wave.setStateCallback(stateUpdated); 
+        wave.setModeCallback(modeUpdated);
       }
     }
 
+    function modeUpdated() {
+      var buttonbar = document.getElementById("buttons");
+      if (wave.getMode() == wave.Mode.EDIT) {
+        buttonbar.style.display="block";
+      } else {
+        buttonbar.style.display="none";
+      }
+      
+      for (key in cltMarkers) {
+        var kStr = new String(key);
+        if (kStr.match('^mrkr_.*')) {
+          if (wave.getMode() == wave.Mode.EDIT) {
+            var marker = cltMarkers[key]['marker'];
+            marker.enableDragging();
+            GEvent.addListener(marker,"dragend", moveMarker);
+            GEvent.addListener(marker,"click", clickMarker);
+            GEvent.addListener(marker,"infowindowbeforeclose", preCloseMarker);
+          } else {
+            var marker = cltMarkers[key]['marker'];            
+            marker.disableDragging();
+            GEvent.clearInstanceListeners(marker);
+          }
+        }
+      }
+    }
+    
+    
     function addMarker() {
       var center = map.map.getCenter();
       delta = {};
@@ -74,17 +103,21 @@ $maplibId = (int)$_GET['id'];
             cltMarkers[key] = svrMarkers[key];
             var mk_ctr = new GLatLng(svrMarkers[key].lat, svrMarkers[key].lng);
             var mk_opt = {};
-            mk_opt['draggable'] = true;
+            mk_opt['draggable'] = true;            
             if (cltMarkers[key].label) {
               mk_opt['title'] = cltMarkers[key].label;
             } else {
               mk_opt['title'] = key;
             }
             var marker = new GMarker(mk_ctr, mk_opt);
+            marker.disableDragging();
+            if (wave.getMode() == wave.Mode.EDIT) {
+              GEvent.addListener(marker,"dragend", moveMarker);
+              GEvent.addListener(marker,"click", clickMarker);
+              GEvent.addListener(marker,"infowindowbeforeclose", preCloseMarker);
+              marker.enableDragging();
+            }
             marker['mkrIdx'] = key;
-            GEvent.addListener(marker,"dragend", moveMarker);
-            GEvent.addListener(marker,"click", clickMarker);
-            GEvent.addListener(marker,"infowindowbeforeclose", preCloseMarker);
             cltMarkers[key]['marker'] = marker;
             map.map.addOverlay(marker);
           }
@@ -106,9 +139,12 @@ $maplibId = (int)$_GET['id'];
             mk_opt['draggable'] = true;
             mk_opt['title'] = mkrState.label;
             var marker = new GMarker(mk_ctr,mk_opt);
-            GEvent.addListener(marker,"dragent", moveMarker);
-            GEvent.addListener(marker,"click", clickMarker);
             marker['mkrIdx'] = key;
+            if (wave.getMode() == wave.Mode.EDIT) {
+              GEvent.addListener(marker,"dragend", moveMarker);
+              GEvent.addListener(marker,"click", clickMarker);
+              GEvent.addListener(marker,"infowindowbeforeclose", preCloseMarker);
+            }
             if(cltMarkers[key]['marker']) {
               cltMarkers[key]['marker'].remove();
               cltMarkers[key]['marker'] = null;
@@ -185,7 +221,9 @@ $maplibId = (int)$_GET['id'];
 	  function handleZoom(oldzoom,newzoom) {
       var delta = {};
       delta['zoomlevel']=JSON.stringify(newzoom);
-      wave.getState().submitDelta(delta);
+      if (wave.getMode() == wave.Mode.EDIT) {
+        wave.getState().submitDelta(delta);
+      }
 	  }
 	
     function handlePan() {
@@ -193,14 +231,18 @@ $maplibId = (int)$_GET['id'];
       center=map.map.getCenter();
       centerPoint = [center.lat(),center.lng()]
       delta['mapcenter']=JSON.stringify(centerPoint);
-      wave.getState().submitDelta(delta);
+      if (wave.getMode() == wave.Mode.EDIT) {
+        wave.getState().submitDelta(delta);
+      }
     }
 
     function syncZoom() {
       var newZoom = JSON.parse(wave.getState().get('zoomlevel'));
       var oldZoom = map.map.getZoom();
-      if (oldZoom != newZoom) {      
-        map.map.setZoom(newZoom);
+      if (oldZoom != newZoom) {
+        if (wave.getMode() != wave.Mode.EDIT) {
+          map.map.setZoom(newZoom);
+        }
       }
     }
 
@@ -208,8 +250,10 @@ $maplibId = (int)$_GET['id'];
       var oCenter = map.map.getCenter();
       var newCenter = JSON.parse(wave.getState().get('mapcenter'));
       var gCenter = new GLatLng(newCenter[0],newCenter[1]);
-      if (JSON.stringify(oCenter) == JSON.stringify(gCenter)) {
-        map.map.setCenter(gCenter);
+      if (JSON.stringify(oCenter) != JSON.stringify(gCenter)) {
+        if (wave.getMode() != wave.Mode.EDIT) {
+          map.map.setCenter(gCenter);
+        }
       }
     }
 	
