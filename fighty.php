@@ -151,7 +151,7 @@ $maplibId = (int)$_GET['id'];
 		
 	  function clickMarker() {
 	    map.map.closeInfoWindow();
-	    this.openInfoWindowHtml("Label: <input value='" + this.getTitle() +"' id='ttl_"+this['mkrIdx']+"' type='text' /> </br><a onClick=removeMarker('" + this['mkrIdx'] + "')>(x)</a>");
+	    this.openInfoWindowHtml("Label: <input value='" + this.getTitle().replace(/'/g, "&#39") +"' id='ttl_"+this['mkrIdx']+"' type='text' /> </br><a onClick=removeMarker('" + this['mkrIdx'] + "')>(x)</a>");
 	  }
 
     function setLabel(markerIdx, label) {		  
