@@ -11,7 +11,7 @@ $maplibId = (int)$_GET['id'];
     <![CDATA[
     
 	<div id="map" style="width: 600px; height: 500px"></div>
-	<div id="buttons"> <button onClick="wave.getState().reset()">Reset</button>
+	<div id="buttons"> <button display="none" onClick="wave.getState().reset()">Reset</button>
 	<button onClick="addMarker()">Add Marker</button>
   </div>
 
